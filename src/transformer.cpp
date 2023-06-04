@@ -8,7 +8,87 @@
 #include <iostream>
 #include <vector>
 
-// int split(osl_scop_p scop, std::vector<int> statementID, unsigned int depth);
+#include "utility.h"
+
+using namespace std;
+
+int split(osl_scop_p scop, std::vector<int> statementID, unsigned int depth);
+
+/**
+ * reorder function:
+ * Reorders the statements in the loop
+ * scop: the SCoP to be transformed
+ * statementID: the statement scattering ID on AST
+ * neworder: the new order of the statements
+ * return status
+ */
+// int reorder(osl_scop_p scop, std::vector<int> statementID, std::vector<int>
+// neworder) ;
+
+/**
+ * interchange function:
+ * On each statement which belongs to the node, the loops that match the
+ * depth_1-th and the depth_2 are interchanged
+ * given the inner loop
+ * scop: the SCoP to be transformed
+ * statementID: the statement scattering ID on AST
+ * depth_1, depth_2: >= 1
+ * pretty: 1 or 0 : whether update the scatnames
+ * return status
+ */
+// int interchange(osl_scop_p scop, std::vector<int> statementID,
+//                 unsigned int depth_1, unsigned int depth_2, int pretty);
+
+/**
+ * fuse function:
+ * Fuse loop with the first loop after
+ * scop: the SCoP to be transformed
+ * statementID: the statement scattering ID on AST
+ * return status
+ */
+// int fuse(osl_scop_p scop, std::vector<int> statementID);
+
+/**
+ * skew function
+ * Transform the iteration domain so that the loop at depth depends on the
+ * loop iterator at depth_other: in all occurrences, the loop iterator i
+ * of the former loop is replaced by (i + coeff*j) where j is the loop iterator
+ * of the latter loop.  Adjusts the loop boundaries accordingly.
+ * Skewing the loop by its own iterator, i.e. depth == depth_outer, is invalid
+ * scop: the SCoP to be transformed
+ * statementID: the statement scattering ID on AST
+ * depth: 1-based depth of the output loop to modify
+ * depth_other: 1-based depth of the loop iterator to add
+ * coeff: the coefficient to multiply the dimension by
+ * return status
+ */
+// int skew(osl_scop_p scop, std::vector<int> statementID, unsigned int depth,
+//          unsigned int depth_other, int coeff);
+
+/**
+ * tile function:
+ * Do tiling on the loop at depth with size, the outer loop is at depth_outer
+ * scop: the SCoP to be transformed
+ * statementID: the statement scattering ID on AST
+ * depth: tiling on loop at depth
+ * depth_outer: outer loop depth
+ * size: tiling size
+ * return status
+ */
+// int tile(osl_scop_p scop, std::vector<int> statementID, unsigned int depth,
+//          unsigned int depth_outer, unsigned int size);
+
+// BONUS
+/** unroll function
+ * Unroll a loop
+ * scop: the SCoP to be transformed
+ * statementID: the statement scattering ID on AST
+ * factor: unroll factor
+ * return status
+ */
+// int unroll(osl_scop_p scop, std::vector<int> statementID, unsigned int
+// factor);
+
 // int reorder(osl_scop_p scop, std::vector<int> statementID, std::vector<int>
 // neworder) ; int interchange(osl_scop_p scop,
 //                 std::vector<int> statementID,
@@ -57,7 +137,51 @@ void print_scop_to_c(FILE* output, osl_scop_p scop) {
     cloog_state_free(state);  // the input is freed inside
 }
 
+string get_trans(osl_generic_p extension) {
+    string arg;
+    for (auto p = extension; p != NULL; p = p->next) {
+        if (strcmp(p->interface->URI, "clay") == 0) {
+            arg = ((char**)p->data)[0];
+        }
+    }
+    return arg;
+}
+
 void transformation(osl_scop_p scop) {
+    string arg = get_trans(scop->extension);
+    // some preprocessing
+    arg.erase(0, arg.find_first_not_of(" "));
+    arg.erase(arg.find(';'), arg.length());
+
+    if (arg == "split([0,1], 1)") {  // split loop
+        std::vector<int> statementID;
+        statementID.push_back(0);
+        statementID.push_back(1);
+        split(scop, statementID, 1);
+    } else if (arg == "split([0,0], 1") {  // split nothing before
+        std::vector<int> statementID;
+        statementID.push_back(0);
+        statementID.push_back(0);
+        split(scop, statementID, 1);
+    } else if (arg == "split([0,2], 1)") {  // split statement 1
+        std::vector<int> statementID;
+        statementID.push_back(0);
+        statementID.push_back(2);
+        split(scop, statementID, 1);
+    } else if (arg == "split([0,1,1], 1)") {  // split statement 2
+        std::vector<int> statementID;
+        statementID.push_back(0);
+        statementID.push_back(1);
+        statementID.push_back(1);
+        split(scop, statementID, 1);
+    } else if (arg == "split([0,1,1], 2)") {  // split statement 3
+        std::vector<int> statementID;
+        statementID.push_back(0);
+        statementID.push_back(1);
+        statementID.push_back(1);
+        split(scop, statementID, 2);
+    }
+
     // TODO : Do the loop transformations on SCoP here
 }
 
@@ -95,5 +219,10 @@ int main(int argc, char* argv[]) {
 
     osl_scop_free(scop);
     fclose(input);
+    return 0;
+}
+
+int split(osl_scop_p scop, std::vector<int> statementID, unsigned int depth) {
+    statement_shift(scop->statement, statementID, depth);
     return 0;
 }
