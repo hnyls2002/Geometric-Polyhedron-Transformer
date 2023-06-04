@@ -220,18 +220,6 @@ int reorder(osl_scop_p scop, std::vector<int> statementID,
     return 0;
 }
 
-/**
- * interchange function:
- * On each statement which belongs to the node, the loops that match the
- * depth_1-th and the depth_2 are interchanged
- * given the inner loop
- * scop: the SCoP to be transformed
- * statementID: the statement scattering ID on AST
- * depth_1, depth_2: >= 1
- * pretty: 1 or 0 : whether update the scatnames
- * return status
- */
-
 // just swap the depth_1 loop column and depth_2 loop column
 int interchange(osl_scop_p scop, std::vector<int> statementID,
                 unsigned int depth_1, unsigned int depth_2, int pretty) {
@@ -252,5 +240,13 @@ int interchange(osl_scop_p scop, std::vector<int> statementID,
             }
         }
     }
+
+    if (pretty) {
+        osl_strings_p names = ((osl_scatnames_p)osl_generic_lookup(
+                                   scop->extension, OSL_URI_SCATNAMES))
+                                  ->names;
+        swap(names->string[idx1], names->string[idx2]);
+    }
+
     return 0;
 }
