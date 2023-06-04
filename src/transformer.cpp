@@ -148,6 +148,7 @@ void transformation(osl_scop_p scop) {
             auto arg0 = (VectorArg*)args[0];
             arg0->display();
             fuse(scop, arg0->arg);
+            break;
         }
         default:
             cerr << "Unknown transformation: " << func << endl;
@@ -250,5 +251,47 @@ int interchange(osl_scop_p scop, std::vector<int> loopID, unsigned int depth_1,
 }
 
 // fuse means to merge two loops into one
-// find the
-int fuse(osl_scop_p scop, std::vector<int> loopID) {}
+int fuse(osl_scop_p scop, std::vector<int> loopID) {
+    // check whether the loopID is valid
+    if (!check_is_loop(scop, loopID)) return -1;
+
+    vector<int> next_loop_id = get_next_loop(scop, loopID);
+    // if there is no next loop to fuse
+    if (next_loop_id.empty()) return -1;
+    // printf("next loop id : ");
+    // for (auto x : next_loop_id) printf("%d ", x);
+    // printf("\n");
+
+    // the idx to be changed
+    int fuse_idx = 2 * loopID.size() - 2;
+    int fuse_val = loopID.back();
+
+    // get the max id in the loop for fusing
+    auto max_id = find_max_in_loop(scop, loopID);
+    int base_val = max_id[loopID.size()];
+    // printf("max id : ");
+    // for (auto x : max_id) printf("%d ", x);
+    // printf("\n");
+
+    for (auto statement = scop->statement; statement != NULL;
+         statement = statement->next) {
+        auto precision = statement->scattering->precision;
+        auto statement_id = get_statementID(statement->scattering);
+        if (in_loop(next_loop_id, statement_id)) {
+            int constant_pos = statement->scattering->nb_columns - 1;
+            // change the level
+            int row1 = find_row(statement->scattering, fuse_idx);
+            osl_int_set_si(precision,
+                           &statement->scattering->m[row1][constant_pos],
+                           fuse_val);
+
+            // cat the statement behind the max id
+            int row2 = find_row(statement->scattering, fuse_idx + 2);
+            osl_int_add_si(
+                precision, &statement->scattering->m[row2][constant_pos],
+                statement->scattering->m[row2][constant_pos], base_val + 1);
+        }
+    }
+
+    return 0;
+}

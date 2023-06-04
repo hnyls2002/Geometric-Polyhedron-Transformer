@@ -104,4 +104,54 @@ bool in_loop(vector<int> loop_id, vector<int> statement_id) {
     return d_pos == loop_id.size();
 }
 
+// check if the given id is a loop
+// the given loop id length should be shorter
+bool check_is_loop(osl_scop_p scop, vector<int> loop_id) {
+    for (auto statement = scop->statement; statement != NULL;
+         statement = statement->next) {
+        auto id = get_statementID(statement->scattering);
+        if (in_loop(loop_id, id)) {
+            // display_statement(statement);
+            return loop_id.size() * 2 - 1 <
+                   statement->scattering->nb_output_dims;
+        }
+    }
+    return false;
+}
+
+// find the next loop's id (next to the given loop_id, and the same level)
+vector<int> get_next_loop(osl_scop_p scop, vector<int> loop_id) {
+    vector<int> next_loop_id = loop_id;
+    next_loop_id[loop_id.size() - 1] += 1;
+    if (check_is_loop(scop, next_loop_id)) {
+        return next_loop_id;
+    }
+    return vector<int>();
+}
+
+// find the max id matching the loop-id prefix
+vector<int> find_max_in_loop(osl_scop_p scop, vector<int> loop_id) {
+    vector<int> max_id;
+    for (auto statement = scop->statement; statement != NULL;
+         statement = statement->next) {
+        auto statement_id = get_statementID(statement->scattering);
+        if (in_loop(loop_id, statement_id)) {
+            if (max_id.empty()) {
+                max_id = statement_id;
+            } else {
+                int d_pos;
+                if (id_compare(statement_id, max_id, d_pos) > 0 &&
+                    d_pos == loop_id.size()) {
+                    max_id = statement_id;
+                }
+            }
+        }
+    }
+    if (max_id.empty()) {
+        cerr << "not a loop in find_max_in_loop()" << endl;
+        exit(-1);
+    }
+    return max_id;
+}
+
 #endif
