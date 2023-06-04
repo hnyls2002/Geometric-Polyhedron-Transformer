@@ -85,4 +85,17 @@ void statement_shift(osl_statement_p statement, vector<int> id0,
     }
 }
 
+// change the k-th id of the statement to x
+// the output scattering index should be 2 * k
+void statement_id_modify(osl_statement_p statement, int k, int x) {
+    int row = find_row(statement->scattering, 2 * k);
+    int constant_pos = statement->scattering->nb_columns - 1;
+    // display_statement(statement);
+    // cerr << "row: " << row << endl;
+    // cerr << "constant_pos: " << constant_pos << endl;
+    // cerr << "x: " << x << endl;
+    osl_int_set_si(statement->scattering->precision,
+                   &statement->scattering->m[row][constant_pos], x);
+}
+
 #endif

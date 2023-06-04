@@ -8,22 +8,15 @@
 #include <iostream>
 #include <vector>
 
+#include "parser.h"
 #include "utility.h"
 
 using namespace std;
 
 int split(osl_scop_p scop, std::vector<int> statementID, unsigned int depth);
 
-/**
- * reorder function:
- * Reorders the statements in the loop
- * scop: the SCoP to be transformed
- * statementID: the statement scattering ID on AST
- * neworder: the new order of the statements
- * return status
- */
-// int reorder(osl_scop_p scop, std::vector<int> statementID, std::vector<int>
-// neworder) ;
+int reorder(osl_scop_p scop, std::vector<int> statementID,
+            std::vector<int> neworder);
 
 /**
  * interchange function:
@@ -137,52 +130,30 @@ void print_scop_to_c(FILE* output, osl_scop_p scop) {
     cloog_state_free(state);  // the input is freed inside
 }
 
-string get_trans(osl_generic_p extension) {
-    string arg;
-    for (auto p = extension; p != NULL; p = p->next) {
-        if (strcmp(p->interface->URI, "clay") == 0) {
-            arg = ((char**)p->data)[0];
-        }
-    }
-    return arg;
-}
-
 void transformation(osl_scop_p scop) {
-    string arg = get_trans(scop->extension);
-    // some preprocessing
-    arg.erase(0, arg.find_first_not_of(" "));
-    arg.erase(arg.find(';'), arg.length());
-
-    if (arg == "split([0,1], 1)") {  // split loop
-        std::vector<int> statementID;
-        statementID.push_back(0);
-        statementID.push_back(1);
-        split(scop, statementID, 1);
-    } else if (arg == "split([0,0], 1") {  // split nothing before
-        std::vector<int> statementID;
-        statementID.push_back(0);
-        statementID.push_back(0);
-        split(scop, statementID, 1);
-    } else if (arg == "split([0,2], 1)") {  // split statement 1
-        std::vector<int> statementID;
-        statementID.push_back(0);
-        statementID.push_back(2);
-        split(scop, statementID, 1);
-    } else if (arg == "split([0,1,1], 1)") {  // split statement 2
-        std::vector<int> statementID;
-        statementID.push_back(0);
-        statementID.push_back(1);
-        statementID.push_back(1);
-        split(scop, statementID, 1);
-    } else if (arg == "split([0,1,1], 2)") {  // split statement 3
-        std::vector<int> statementID;
-        statementID.push_back(0);
-        statementID.push_back(1);
-        statementID.push_back(1);
-        split(scop, statementID, 2);
+    vector<BaseArg*> args;
+    int func = parser(scop, args);
+    switch (func) {
+        case SPLIT: {
+            auto arg0 = (VectorArg*)args[0];
+            auto arg1 = (SingleIntArg*)args[1];
+            arg0->display();
+            arg1->display();
+            split(scop, arg0->arg, arg1->arg);
+            break;
+        }
+        case REORDER: {
+            auto arg0 = (VectorArg*)args[0];
+            auto arg1 = (VectorArg*)args[1];
+            arg0->display();
+            arg1->display();
+            reorder(scop, arg0->arg, arg1->arg);
+            break;
+        }
+        default:
+            cerr << "Unknown transformation: " << func << endl;
+            break;
     }
-
-    // TODO : Do the loop transformations on SCoP here
 }
 
 int main(int argc, char* argv[]) {
@@ -224,5 +195,28 @@ int main(int argc, char* argv[]) {
 
 int split(osl_scop_p scop, std::vector<int> statementID, unsigned int depth) {
     statement_shift(scop->statement, statementID, depth);
+    return 0;
+}
+
+// the statementID represents a unique loop (or a node in the AST)
+// if the statementID is empty, then the whole scop is reordered
+int reorder(osl_scop_p scop, std::vector<int> statementID,
+            std::vector<int> neworder) {
+    for (auto statement = scop->statement; statement != NULL;
+         statement = statement->next) {
+        auto id1 = get_statementID(statement->scattering);
+        int d_pos;
+        id_compare(statementID, id1, d_pos);
+        // check if the statement is in the loop
+        if (d_pos == statementID.size()) {
+            // the position to be modified
+            int index = statementID.size();
+            // old order
+            int old_order = id1[index];
+            // new order
+            int new_order = neworder[old_order];
+            statement_id_modify(statement, index, new_order);
+        }
+    }
     return 0;
 }

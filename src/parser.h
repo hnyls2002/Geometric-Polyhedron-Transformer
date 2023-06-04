@@ -97,6 +97,8 @@ int parser(osl_scop_p scop, vector<BaseArg *> &args) {
     string func_name = str.substr(0, str.find('('));
     int ret = 0;
 
+    cerr << "func_name: " << func_name << endl;
+
     if (func_name == "split") {
         ret = SPLIT;
     } else if (func_name == "reorder") {
