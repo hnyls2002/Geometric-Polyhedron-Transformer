@@ -15,20 +15,13 @@ using namespace std;
 
 int split(osl_scop_p scop, std::vector<int> statementID, unsigned int depth);
 
-int reorder(osl_scop_p scop, std::vector<int> statementID,
+int reorder(osl_scop_p scop, std::vector<int> loopID,
             std::vector<int> neworder);
 
-int interchange(osl_scop_p scop, std::vector<int> statementID,
-                unsigned int depth_1, unsigned int depth_2, int pretty);
+int interchange(osl_scop_p scop, std::vector<int> loopID, unsigned int depth_1,
+                unsigned int depth_2, int pretty);
 
-/**
- * fuse function:
- * Fuse loop with the first loop after
- * scop: the SCoP to be transformed
- * statementID: the statement scattering ID on AST
- * return status
- */
-// int fuse(osl_scop_p scop, std::vector<int> statementID);
+int fuse(osl_scop_p scop, std::vector<int> loopID);
 
 /**
  * skew function
@@ -151,6 +144,11 @@ void transformation(osl_scop_p scop) {
             interchange(scop, arg0->arg, arg1->arg, arg2->arg, arg3->arg);
             break;
         }
+        case FUSE: {
+            auto arg0 = (VectorArg*)args[0];
+            arg0->display();
+            fuse(scop, arg0->arg);
+        }
         default:
             cerr << "Unknown transformation: " << func << endl;
             break;
@@ -199,17 +197,17 @@ int split(osl_scop_p scop, std::vector<int> statementID, unsigned int depth) {
     return 0;
 }
 
-// the statementID represents a unique loop (or a node in the AST)
-// if the statementID is empty, then the whole scop is reordered
-int reorder(osl_scop_p scop, std::vector<int> statementID,
+// the loopID represents a unique loop (or a node in the AST)
+// if the loopID is empty, then the whole scop is reordered
+int reorder(osl_scop_p scop, std::vector<int> loopID,
             std::vector<int> neworder) {
     for (auto statement = scop->statement; statement != NULL;
          statement = statement->next) {
         auto id1 = get_statementID(statement->scattering);
         // check if the statement is in the loop
-        if (in_loop(statementID, id1)) {
+        if (in_loop(loopID, id1)) {
             // the position to be modified
-            int index = statementID.size();
+            int index = loopID.size();
             // old order
             int old_order = id1[index];
             // new order
@@ -221,8 +219,8 @@ int reorder(osl_scop_p scop, std::vector<int> statementID,
 }
 
 // just swap the depth_1 loop column and depth_2 loop column
-int interchange(osl_scop_p scop, std::vector<int> statementID,
-                unsigned int depth_1, unsigned int depth_2, int pretty) {
+int interchange(osl_scop_p scop, std::vector<int> loopID, unsigned int depth_1,
+                unsigned int depth_2, int pretty) {
     if (depth_1 == depth_2) return 0;
     // get the index in scattering matrix
     int idx1 = depth_1 * 2 - 1;
@@ -230,7 +228,7 @@ int interchange(osl_scop_p scop, std::vector<int> statementID,
     for (auto statement = scop->statement; statement != NULL;
          statement = statement->next) {
         auto id1 = get_statementID(statement->scattering);
-        if (in_loop(statementID, id1)) {
+        if (in_loop(loopID, id1)) {
             // display_statement(statement);
             // swap the column idx1 and idx2
             for (int row = 0; row < statement->scattering->nb_rows; row++) {
@@ -250,3 +248,7 @@ int interchange(osl_scop_p scop, std::vector<int> statementID,
 
     return 0;
 }
+
+// fuse means to merge two loops into one
+// find the
+int fuse(osl_scop_p scop, std::vector<int> loopID) {}
