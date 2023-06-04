@@ -57,6 +57,10 @@ void print_scop_to_c(FILE* output, osl_scop_p scop) {
     cloog_state_free(state);  // the input is freed inside
 }
 
+void transformation(osl_scop_p scop) {
+    // TODO : Do the loop transformations on SCoP here
+}
+
 int main(int argc, char* argv[]) {
     osl_scop_p scop;
     FILE* input;
@@ -73,9 +77,22 @@ int main(int argc, char* argv[]) {
         exit(0);
     }
     scop = read_scop_from_c(input, argv[1]);
-    osl_scop_print(stdout, scop);
-    // Do the loop transformations on SCoP here
-    print_scop_to_c(stdout, scop);
+
+    // original scop
+    FILE* original = fopen("./testspace/original.scop", "w");
+    osl_scop_print(original, scop);
+
+    // do the transformations
+    transformation(scop);
+
+    // transformed scop
+    FILE* transformed = fopen("./testspace/transformed.scop", "w");
+    osl_scop_print(transformed, scop);
+
+    // transformed scop to c
+    FILE* output = fopen("./testspace/output.c", "w");
+    print_scop_to_c(output, scop);
+
     osl_scop_free(scop);
     fclose(input);
     return 0;
