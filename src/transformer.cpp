@@ -23,22 +23,8 @@ int interchange(osl_scop_p scop, std::vector<int> loopID, unsigned int depth_1,
 
 int fuse(osl_scop_p scop, std::vector<int> loopID);
 
-/**
- * skew function
- * Transform the iteration domain so that the loop at depth depends on the
- * loop iterator at depth_other: in all occurrences, the loop iterator i
- * of the former loop is replaced by (i + coeff*j) where j is the loop iterator
- * of the latter loop.  Adjusts the loop boundaries accordingly.
- * Skewing the loop by its own iterator, i.e. depth == depth_outer, is invalid
- * scop: the SCoP to be transformed
- * statementID: the statement scattering ID on AST
- * depth: 1-based depth of the output loop to modify
- * depth_other: 1-based depth of the loop iterator to add
- * coeff: the coefficient to multiply the dimension by
- * return status
- */
-// int skew(osl_scop_p scop, std::vector<int> statementID, unsigned int depth,
-//          unsigned int depth_other, int coeff);
+int skew(osl_scop_p scop, std::vector<int> loopID, unsigned int depth,
+         unsigned int depth_other, int coeff);
 
 /**
  * tile function:
@@ -63,23 +49,6 @@ int fuse(osl_scop_p scop, std::vector<int> loopID);
  */
 // int unroll(osl_scop_p scop, std::vector<int> statementID, unsigned int
 // factor);
-
-// int reorder(osl_scop_p scop, std::vector<int> statementID, std::vector<int>
-// neworder) ; int interchange(osl_scop_p scop,
-//                 std::vector<int> statementID,
-//                 unsigned int depth_1, unsigned int depth_2,
-//                 int pretty) ;
-// int fuse(osl_scop_p scop, std::vector<int> statementID) ;
-// int skew(osl_scop_p scop,
-//          std::vector<int> statementID,
-//          unsigned int depth,
-//          unsigned int depth_other,
-//          int coeff) ;
-// int tile(osl_scop_p scop,
-//          std::vector<int> statementID, unsigned int depth, unsigned int
-//          depth_outer, unsigned int size) ;
-// int unroll(osl_scop_p scop, std::vector<int> statementID, unsigned int
-// factor) ;
 
 /* Use the Clan library to convert a SCoP from C to OpenScop */
 osl_scop_p read_scop_from_c(FILE* input, char* input_name) {
@@ -150,9 +119,27 @@ void transformation(osl_scop_p scop) {
             fuse(scop, arg0->arg);
             break;
         }
+        case SKEW: {
+            auto arg0 = (VectorArg*)args[0];
+            auto arg1 = (SingleIntArg*)args[1];
+            auto arg2 = (SingleIntArg*)args[2];
+            auto arg3 = (SingleIntArg*)args[3];
+            arg0->display();
+            arg1->display();
+            arg2->display();
+            arg3->display();
+            skew(scop, arg0->arg, arg1->arg, arg2->arg, arg3->arg);
+            break;
+        }
         default:
             cerr << "Unknown transformation: " << func << endl;
             break;
+    }
+    for (auto ptr : args) {
+        if (ptr->type == 0)
+            delete (SingleIntArg*)ptr;
+        else
+            delete (VectorArg*)ptr;
     }
 }
 
@@ -274,6 +261,31 @@ int fuse(osl_scop_p scop, std::vector<int> loopID) {
 
             // cat the statement behind the max id
             statement_id_add(statement, loopID.size(), base_val + 1);
+        }
+    }
+
+    return 0;
+}
+
+int skew(osl_scop_p scop, std::vector<int> loopID, unsigned int depth,
+         unsigned int depth_other, int coeff) {
+    int idx1 = depth * 2 - 1;
+    int idx2 = depth_other * 2 - 1;
+
+    for (auto statement = scop->statement; statement != NULL;
+         statement = statement->next) {
+        auto scattering = statement->scattering;
+        auto precision = scattering->precision;
+        auto statement_id = get_statementID(scattering);
+
+        if (in_loop(loopID, statement_id)) {
+            // every row should be transformed !!!
+            for (int row = 0; row < scattering->nb_rows; ++row) {
+                int t = osl_int_get_si(0, scattering->m[row][idx1 + 1]);
+                t = t * coeff;
+                osl_int_add_si(precision, &scattering->m[row][idx2 + 1],
+                               scattering->m[row][idx2 + 1], t);
+            }
         }
     }
 
