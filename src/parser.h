@@ -83,7 +83,9 @@ VectorArg *read_vector(string &str, int &p) {
                str[p] != ']')
             ++p;
         if (p >= str.length() || str[p] == ']') break;
-        ret->arg.push_back(read_int(str, p)->arg);
+        SingleIntArg *ptr = read_int(str, p);
+        ret->arg.push_back(ptr->arg);
+        delete ptr;
     }
     return ret;
 }
