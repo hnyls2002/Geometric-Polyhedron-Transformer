@@ -18,19 +18,8 @@ int split(osl_scop_p scop, std::vector<int> statementID, unsigned int depth);
 int reorder(osl_scop_p scop, std::vector<int> statementID,
             std::vector<int> neworder);
 
-/**
- * interchange function:
- * On each statement which belongs to the node, the loops that match the
- * depth_1-th and the depth_2 are interchanged
- * given the inner loop
- * scop: the SCoP to be transformed
- * statementID: the statement scattering ID on AST
- * depth_1, depth_2: >= 1
- * pretty: 1 or 0 : whether update the scatnames
- * return status
- */
-// int interchange(osl_scop_p scop, std::vector<int> statementID,
-//                 unsigned int depth_1, unsigned int depth_2, int pretty);
+int interchange(osl_scop_p scop, std::vector<int> statementID,
+                unsigned int depth_1, unsigned int depth_2, int pretty);
 
 /**
  * fuse function:
@@ -150,6 +139,18 @@ void transformation(osl_scop_p scop) {
             reorder(scop, arg0->arg, arg1->arg);
             break;
         }
+        case INTERCHANGE: {
+            auto arg0 = (VectorArg*)args[0];
+            auto arg1 = (SingleIntArg*)args[1];
+            auto arg2 = (SingleIntArg*)args[2];
+            auto arg3 = (SingleIntArg*)args[3];
+            arg0->display();
+            arg1->display();
+            arg2->display();
+            arg3->display();
+            interchange(scop, arg0->arg, arg1->arg, arg2->arg, arg3->arg);
+            break;
+        }
         default:
             cerr << "Unknown transformation: " << func << endl;
             break;
@@ -205,10 +206,8 @@ int reorder(osl_scop_p scop, std::vector<int> statementID,
     for (auto statement = scop->statement; statement != NULL;
          statement = statement->next) {
         auto id1 = get_statementID(statement->scattering);
-        int d_pos;
-        id_compare(statementID, id1, d_pos);
         // check if the statement is in the loop
-        if (d_pos == statementID.size()) {
+        if (in_loop(statementID, id1)) {
             // the position to be modified
             int index = statementID.size();
             // old order
@@ -216,6 +215,41 @@ int reorder(osl_scop_p scop, std::vector<int> statementID,
             // new order
             int new_order = neworder[old_order];
             statement_id_modify(statement, index, new_order);
+        }
+    }
+    return 0;
+}
+
+/**
+ * interchange function:
+ * On each statement which belongs to the node, the loops that match the
+ * depth_1-th and the depth_2 are interchanged
+ * given the inner loop
+ * scop: the SCoP to be transformed
+ * statementID: the statement scattering ID on AST
+ * depth_1, depth_2: >= 1
+ * pretty: 1 or 0 : whether update the scatnames
+ * return status
+ */
+
+// just swap the depth_1 loop column and depth_2 loop column
+int interchange(osl_scop_p scop, std::vector<int> statementID,
+                unsigned int depth_1, unsigned int depth_2, int pretty) {
+    if (depth_1 == depth_2) return 0;
+    // get the index in scattering matrix
+    int idx1 = depth_1 * 2 - 1;
+    int idx2 = depth_2 * 2 - 1;
+    for (auto statement = scop->statement; statement != NULL;
+         statement = statement->next) {
+        auto id1 = get_statementID(statement->scattering);
+        if (in_loop(statementID, id1)) {
+            // display_statement(statement);
+            // swap the column idx1 and idx2
+            for (int row = 0; row < statement->scattering->nb_rows; row++) {
+                osl_int_swap(statement->scattering->precision,
+                             &statement->scattering->m[row][idx1 + 1],
+                             &statement->scattering->m[row][idx2 + 1]);
+            }
         }
     }
     return 0;

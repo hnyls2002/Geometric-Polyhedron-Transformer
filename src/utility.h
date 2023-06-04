@@ -98,4 +98,10 @@ void statement_id_modify(osl_statement_p statement, int k, int x) {
                    &statement->scattering->m[row][constant_pos], x);
 }
 
+bool in_loop(vector<int> loop_id, vector<int> statement_id) {
+    int d_pos;
+    id_compare(loop_id, statement_id, d_pos);
+    return d_pos == loop_id.size();
+}
+
 #endif
