@@ -98,6 +98,15 @@ void statement_id_modify(osl_statement_p statement, int k, int x) {
                    &statement->scattering->m[row][constant_pos], x);
 }
 
+// add x to the k-th id of the statement
+void statement_id_add(osl_statement_p statement, int k, int x) {
+    int row = find_row(statement->scattering, 2 * k);
+    int constant_pos = statement->scattering->nb_columns - 1;
+    osl_int_add_si(statement->scattering->precision,
+                   &statement->scattering->m[row][constant_pos],
+                   statement->scattering->m[row][constant_pos], x);
+}
+
 bool in_loop(vector<int> loop_id, vector<int> statement_id) {
     int d_pos;
     id_compare(loop_id, statement_id, d_pos);

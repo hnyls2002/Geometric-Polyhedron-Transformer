@@ -258,20 +258,10 @@ int fuse(osl_scop_p scop, std::vector<int> loopID) {
     vector<int> next_loop_id = get_next_loop(scop, loopID);
     // if there is no next loop to fuse
     if (next_loop_id.empty()) return -1;
-    // printf("next loop id : ");
-    // for (auto x : next_loop_id) printf("%d ", x);
-    // printf("\n");
 
-    // the idx to be changed
-    int fuse_idx = 2 * loopID.size() - 2;
     int fuse_val = loopID.back();
-
-    // get the max id in the loop for fusing
     auto max_id = find_max_in_loop(scop, loopID);
     int base_val = max_id[loopID.size()];
-    // printf("max id : ");
-    // for (auto x : max_id) printf("%d ", x);
-    // printf("\n");
 
     for (auto statement = scop->statement; statement != NULL;
          statement = statement->next) {
@@ -280,16 +270,10 @@ int fuse(osl_scop_p scop, std::vector<int> loopID) {
         if (in_loop(next_loop_id, statement_id)) {
             int constant_pos = statement->scattering->nb_columns - 1;
             // change the level
-            int row1 = find_row(statement->scattering, fuse_idx);
-            osl_int_set_si(precision,
-                           &statement->scattering->m[row1][constant_pos],
-                           fuse_val);
+            statement_id_modify(statement, loopID.size() - 1, fuse_val);
 
             // cat the statement behind the max id
-            int row2 = find_row(statement->scattering, fuse_idx + 2);
-            osl_int_add_si(
-                precision, &statement->scattering->m[row2][constant_pos],
-                statement->scattering->m[row2][constant_pos], base_val + 1);
+            statement_id_add(statement, loopID.size(), base_val + 1);
         }
     }
 
