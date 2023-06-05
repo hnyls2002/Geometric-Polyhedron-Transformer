@@ -26,18 +26,8 @@ int fuse(osl_scop_p scop, std::vector<int> loopID);
 int skew(osl_scop_p scop, std::vector<int> loopID, unsigned int depth,
          unsigned int depth_other, int coeff);
 
-/**
- * tile function:
- * Do tiling on the loop at depth with size, the outer loop is at depth_outer
- * scop: the SCoP to be transformed
- * statementID: the statement scattering ID on AST
- * depth: tiling on loop at depth
- * depth_outer: outer loop depth
- * size: tiling size
- * return status
- */
-// int tile(osl_scop_p scop, std::vector<int> statementID, unsigned int depth,
-//          unsigned int depth_outer, unsigned int size);
+int tile(osl_scop_p scop, std::vector<int> statementID, unsigned int depth,
+         unsigned int depth_outer, unsigned int size);
 
 // BONUS
 /** unroll function
@@ -82,6 +72,7 @@ void print_scop_to_c(FILE* output, osl_scop_p scop) {
 }
 
 void transformation(osl_scop_p scop) {
+    printf("===============args=================\n");
     vector<BaseArg*> args;
     int func = parser(scop, args);
     switch (func) {
@@ -131,10 +122,23 @@ void transformation(osl_scop_p scop) {
             skew(scop, arg0->arg, arg1->arg, arg2->arg, arg3->arg);
             break;
         }
+        case TILE: {
+            auto arg0 = (VectorArg*)args[0];
+            auto arg1 = (SingleIntArg*)args[1];
+            auto arg2 = (SingleIntArg*)args[2];
+            auto arg3 = (SingleIntArg*)args[3];
+            arg0->display();
+            arg1->display();
+            arg2->display();
+            arg3->display();
+            tile(scop, arg0->arg, arg1->arg, arg2->arg, arg3->arg);
+            break;
+        }
         default:
             cerr << "Unknown transformation: " << func << endl;
             break;
     }
+    printf("===========end of args==============\n");
     for (auto ptr : args) {
         if (ptr->type == 0)
             delete (SingleIntArg*)ptr;
@@ -289,5 +293,17 @@ int skew(osl_scop_p scop, std::vector<int> loopID, unsigned int depth,
         }
     }
 
+    return 0;
+}
+
+int tile(osl_scop_p scop, std::vector<int> loop_id, unsigned int depth,
+         unsigned int depth_outer, unsigned int size) {
+    stripmine(scop, loop_id, depth, size);
+    // update the lood_id
+    vector<int> new_loop_id = loop_id;
+    new_loop_id.push_back(0);
+    for (int i = depth; i < loop_id.size(); ++i)
+        new_loop_id.push_back(loop_id[i]);
+    interchange(scop, new_loop_id, depth, depth_outer, 1);
     return 0;
 }

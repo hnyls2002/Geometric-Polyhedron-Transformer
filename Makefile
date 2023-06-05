@@ -4,7 +4,7 @@ BUILD_DIR = ./build
 
 # build the compiler from source
 build: $(SRC_DIR)/transformer.cpp $(SRC_DIR)/codegen.cpp
-	@g++ -DCLOOG_INT_GMP $(SRC_DIR)/transformer.cpp -lcloog-isl -lclan -fsanitize=address,undefined -losl -o $(BUILD_DIR)/transformer && \
+	@g++ -DCLOOG_INT_GMP $(SRC_DIR)/transformer.cpp -lcloog-isl -lclan -losl -o $(BUILD_DIR)/transformer && \
 	g++ $(SRC_DIR)/codegen.cpp -lcloog-isl -lclan -losl -o $(BUILD_DIR)/codegen
 
 # compile the input.c file

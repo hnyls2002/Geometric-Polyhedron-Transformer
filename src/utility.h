@@ -163,4 +163,115 @@ vector<int> find_max_in_loop(osl_scop_p scop, vector<int> loop_id) {
     return max_id;
 }
 
+bool check_name_exist(osl_scatnames_p scat, char* str) {
+    char** ptr = scat->names->string;
+    while (*ptr != NULL) {
+        if (strcmp(*ptr, str) == 0) {
+            return true;
+        }
+        ++ptr;
+    }
+    return false;
+}
+
+int stripmine(osl_scop_p scop, vector<int> loop_id, unsigned int depth,
+              unsigned int size) {
+    int col = (depth - 1) * 2;
+    for (auto statement = scop->statement; statement != NULL;
+         statement = statement->next) {
+        auto scattering = statement->scattering;
+        auto statement_id = get_statementID(scattering);
+        auto precision = scattering->precision;
+        if (in_loop(loop_id, statement_id)) {
+            int row = find_row(scattering, col);
+
+            // insert new lines and columns
+            // cerr << "col : " << col << endl;
+            osl_relation_insert_blank_column(scattering, col + 1);
+            osl_relation_insert_blank_column(scattering, col + 1);
+
+            osl_relation_insert_blank_row(scattering, row);
+            osl_relation_insert_blank_row(scattering, row);
+            osl_relation_insert_blank_row(scattering, row);
+
+            osl_int_set_si(precision, &scattering->m[row + 0][col + 1], -1);
+            osl_int_set_si(precision, &scattering->m[row + 1][col + 2], -size);
+            osl_int_set_si(precision, &scattering->m[row + 2][col + 2], size);
+            osl_int_set_si(precision,
+                           &scattering->m[row + 2][scattering->nb_columns - 1],
+                           size - 1);
+
+            // inquality
+            osl_int_set_si(precision, &scattering->m[row + 1][0], 1);
+            osl_int_set_si(precision, &scattering->m[row + 2][0], 1);
+
+            // dependences
+            osl_int_set_si(precision, &scattering->m[row + 1][col + 4], 1);
+            osl_int_set_si(precision, &scattering->m[row + 2][col + 4], -1);
+
+            scattering->nb_output_dims += 2;
+
+            // reorder
+            int row_next = find_row(scattering, col + 2);
+            osl_int_assign(precision,
+                           &scattering->m[row][scattering->nb_columns - 1],
+                           scattering->m[row_next][scattering->nb_columns - 1]);
+            osl_int_set_si(precision,
+                           &scattering->m[row_next][scattering->nb_columns - 1],
+                           0);
+        }
+    }
+
+    osl_scatnames_p scat =
+        (osl_scatnames_p)osl_generic_lookup(scop->extension, OSL_URI_SCATNAMES);
+    osl_strings_p names = scat->names;
+
+    char buffer[128];
+    char* new_var_iter;
+    char* new_var_scat;
+
+    for (int i = 0;; ++i) {
+        sprintf(buffer, "__%s%s%d", names->string[col + 1],
+                names->string[col + 1], i);
+        if (check_name_exist(scat, buffer)) {
+            continue;
+        }
+        break;
+    }
+    OSL_strdup(new_var_iter, buffer);
+
+    for (int i = 0;; ++i) {
+        sprintf(buffer, "__b%d", i);
+        if (check_name_exist(scat, buffer)) {
+            continue;
+        }
+        break;
+    }
+    OSL_strdup(new_var_scat, buffer);
+
+    // cerr << "new_var_iter: " << new_var_iter << endl;
+    // cerr << "new_var_scat: " << new_var_scat << endl;
+
+    // insert two names
+    int nb_strings = osl_strings_size(names) + 2;
+    osl_strings_p new_names = osl_strings_malloc();
+    new_names->string = (char**)malloc(sizeof(char**) * (nb_strings + 1));
+
+    for (int i = 0; i < col; ++i) new_names->string[i] = names->string[i];
+
+    new_names->string[col + 0] = new_var_scat;
+    new_names->string[col + 1] = new_var_iter;
+
+    for (int i = col + 2; i < nb_strings; ++i)
+        new_names->string[i] = names->string[i - 2];
+
+    new_names->string[nb_strings] = NULL;
+
+    free(names->string);
+    free(names);
+    scat->names = new_names;
+
+    return 0;
+}
+
 #endif
